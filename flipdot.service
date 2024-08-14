@@ -1,0 +1,10 @@
+[Unit]
+Description=flipdot
+
+[Service]
+ExecStart=/usr/bin/python3 /home/alarm/fuckshit.py
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
+Alias=flipdotd.service

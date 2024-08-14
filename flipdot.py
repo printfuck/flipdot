@@ -3,15 +3,15 @@ import time
 import json
 import paho.mqtt.client as mqt
 size_index = {"small" : b"S", "medium": b"M", "large" : b"L"}
-#se = ''
 working = False
 
+
+
 def on_connect(mosq, obj, foo ,bar ):
-    print( "Connected" )
+	print( "Connected" )
 
 def on_message(mosq, obj, msg):
-    #print( "Received on topic: " + msg.topic + " Message: "+str(msg.payload) );
-	global working
+ 	global working
 	if working is True:
 		return
 	working = True
@@ -25,6 +25,8 @@ def on_message(mosq, obj, msg):
    		hline(msg.payload)
 	elif msg.topic.find("vertical") > 0:
    		vline(msg.payload)
+	elif msg.topic.find("rect") > 0:
+   		rect(msg.payload)
 	se.reset_input_buffer()
 	working = False
 
@@ -52,8 +54,24 @@ def getText(msg):
 
 def setPixel(msg):
 	try:
+		print("Pixel Set")
 		obj = json.loads(msg)
-		se.write("S," + obj["color"] + "," + obj["x"] + "," + obj["y"] + "\\")
+		se.write(b"S," + bytes(str(obj["color"]), "utf-8" ) + b"," + bytes(str(obj["x"]),"utf-8")  + b"," + bytes(str(obj["y"]), "utf-8") + b",\\")
+	except:
+		return
+
+def rect(msg):
+	try:
+		print("Rect Set")
+		obj = json.loads(msg)
+		x = obj["x"]
+		y = obj["y"]
+		width = obj["width"]
+		height = obj["height"]
+		color = bytes(obj["color"], "utf-8")
+		for i in range(0,width):
+			for j in range(0,height):
+				pixel(i+x, j+y, color)
 	except:
 		return
 
@@ -93,15 +111,20 @@ def hline(msg):
 	except:
 		return
 
+def pixel( x,y,color):
+        se.write(b"S," + color + b"," + bytes(x,"utf-8")  + b"," + bytes(y, "utf-8") + b",\\")
+
 # Set callbacks
 if __name__ == '__main__':
         global se
         mqtc = mqt.Client()
-        mqtc.connect("10.42.0.244", 1883, 60)
+        mqtc.connect("mqtt.chaospott.de", 1883, 60)
         mqtc.subscribe("foobar/flipdot/text", 0)
         mqtc.subscribe("foobar/flipdot/clear", 0)
         mqtc.subscribe("foobar/flipdot/horizontal", 0)
         mqtc.subscribe("foobar/flipdot/vertical", 0)
+        mqtc.subscribe("foobar/flipdot/pixel", 0)
+        mqtc.subscribe("foobar/flipdot/rect", 0)
 
         mqtc.on_message = on_message
         mqtc.on_connect = on_connect
@@ -114,8 +137,6 @@ if __name__ == '__main__':
         while not s.is_open:
                 time.sleep(1)
         se = s
+        mqtc.loop_forever(timeout=1.0, max_packets=1, retry_first_connection=False)
 
-        rc = 0
-        while rc == 0:
-                rc = mqtc.loop()
         s.close()
